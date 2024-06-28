@@ -30,8 +30,10 @@ def normalize(selected_col, df):
 
 
 def impute_missing_data(selected_col, df):
-    print('Brief Overview of Missing Data: ')
-    print(selected_col.isna())
+    print('Overview of Missing Data: ')
+    print(df[df[selected_col.name].isna()])
+
+    options = ['KNN', 'Delete Rows', 'Most Frequent']
 
 
 def encode(selected_col, df):
@@ -58,7 +60,6 @@ def print_options(options):
     return int(selection)
 
 
-
 def main():
     pd.set_option('display.max_columns', None)
     print('Welcome to the CSV Trainer!\n')
@@ -77,13 +78,18 @@ def main():
             categorical_options = ['Impute Missing Data', 'Encode', 'Drop Column', 'Cancel']
             categorical_functions = [impute_missing_data, encode, drop_column]
             option = print_options(categorical_options)
-            if option == 0:
+            if option == len(categorical_options) - 1:
                 continue
             else:
                 categorical_functions[option](selected_col, df)
         else:
             numerical_options = ['Normalize', 'Drop Column', 'Cancel']
             numerical_functions = [normalize, drop_column]
+            option = print_options(numerical_options)
+            if option == len(numerical_options) - 1:
+                continue
+            else:
+                numerical_functions[option](selected_col, df)
 
 
 if __name__ == '__main__':
