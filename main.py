@@ -162,8 +162,24 @@ def main():
             selected_col = select_column(df, 'all')
             preprocessing_functions[option](selected_col, df)
 
+    # First -> Pick Target Variable
+    target_col = select_column(df, 'all')
+
+    if target_col.dtype == object:
+        # GIVE CLASSIFICATION MODELS
+        pass
+    else:
+        model_options = []
+        pass
+
+
     # Model Training Loop:
     while True:
+        # Second -> Pick Model
+        # Third -> Pick Hyperparameters
+        # Fourth -> Display Accuracy Metrics with Chosen Hyper parameters
+        # Fifth -> Loop and tune hyperparameters until satisfied
+        # Sixth -> Save Model
         pass
 
 
