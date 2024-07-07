@@ -2,9 +2,14 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder
-from sklearn.impute import KNNImputer, SimpleImputer
-encoded_columns = set()
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import MaxAbsScaler
 
+encoded_columns = set()
+normalized_columns = set()
 
 def select_column(df, dtype):
     if dtype == 'all':
@@ -35,15 +40,33 @@ def select_column(df, dtype):
 
 
 def normalize(selected_col, df):
-    pass
+
+    if selected_col.name in normalized_columns:
+        print('Column already normalized.')
+        return
+
+    print('Overview of pre-normalized Data: ')
+    print(df[selected_col.name])
+
+    options = ['StandardScaler', 'MinMaxScaler', 'MaxAbsScaler', 'RobustScaler', 'Cancel']
+    scalers = [StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler]
+
+    option = print_options(options)
+    if option == len(options) - 1:
+        return
+    else:
+        scaler = scalers[option]()
+
+    df[selected_col.name] = scaler.fit_transform(df[[selected_col.name]])
+    normalized_columns.add(selected_col.name)
 
 
 def impute_missing_data(selected_col, df):
-    print('Overview of Missing Data: ')
-
     if df[df[selected_col.name].isna()].empty:
         print('No missing data for selected column.')
         return
+
+    print('Overview of Missing Data: ')
 
     print(df[df[selected_col.name].isna()])
     options = ['Most Frequent', 'Delete Rows', 'Cancel']
@@ -57,7 +80,7 @@ def impute_missing_data(selected_col, df):
     if option == 0:
         imputer = SimpleImputer(strategy='most_frequent')
 
-    df[[selected_col.name]] = imputer.fit_transform(df[[selected_col.name]])
+    df[selected_col.name] = imputer.fit_transform(df[[selected_col.name]])
     print(df[selected_col.name])
 
 
@@ -114,25 +137,34 @@ def main():
     print('\nYour Data: ')
     print(df.head(), '\n')
 
-    options = ['Impute Data (Categorical)', 'Encode Data (Categorical)', 'View Heatmap (Numerical)', 'Normalize (Numerical)',
-               'Drop Feature (Both)', 'Complete Feature Engineering', 'Leave']
+    # Preprocessing loop:
+    preprocessing_options = ['Impute Data (Categorical)', 'Encode Data (Categorical)', 'View Heatmap (Numerical)', 'Normalize (Numerical)',
+               'Drop Feature (Both)', 'View Data', 'Complete Feature Engineering', 'Leave']
 
-    functions = [impute_missing_data, encode, print_heatmap, normalize, drop_column]
+    preprocessing_functions = [impute_missing_data, encode, print_heatmap, normalize, drop_column]
     while True:
-        option = print_options(options)
-        if option == len(options) - 1:
+        option = print_options(preprocessing_options)
+        if option == len(preprocessing_options) - 1:
+            exit()
+        if option == len(preprocessing_options) - 2:
             break
+        if option == len(preprocessing_options) - 3:
+            print(df)
         if option == 0 or option == 1:
             selected_col = select_column(df, ['object'])
-            functions[option](selected_col, df)
+            preprocessing_functions[option](selected_col, df)
         if option == 2:
-            functions[option](df)
+            preprocessing_functions[option](df)
         if option == 3:
             selected_col = select_column(df, 'number')
-            functions[option](selected_col, df)
+            preprocessing_functions[option](selected_col, df)
         if option == 4:
             selected_col = select_column(df, 'all')
-            functions[option](selected_col, df)
+            preprocessing_functions[option](selected_col, df)
+
+    # Model Training Loop:
+    while True:
+        pass
 
 
 if __name__ == '__main__':
