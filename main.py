@@ -7,9 +7,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MaxAbsScaler
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
+
 
 encoded_columns = set()
 normalized_columns = set()
+
 
 def select_column(df, dtype):
     if dtype == 'all':
@@ -122,6 +129,26 @@ def print_heatmap(df):
     plt.show()
 
 
+def get_input_value(param_name, param_type):
+    while True:
+        user_input = input(f"Enter value for {param_name} ({param_type}): ")
+        try:
+            if param_type == 'bool':
+                if user_input.lower() in ['true', 'false']:
+                    return user_input.lower() == 'true'
+                else:
+                    raise ValueError("Input must be 'true' or 'false'")
+            elif param_type == 'int':
+                return int(user_input)
+            elif param_type == 'float':
+                return float(user_input)
+            else:
+                print(f"Unsupported parameter type: {param_type}")
+                return None
+        except ValueError as e:
+            print(f"Invalid input: {e}")
+
+
 def main():
     # Display all features
     pd.set_option('display.max_columns', None)
@@ -162,25 +189,66 @@ def main():
             selected_col = select_column(df, 'all')
             preprocessing_functions[option](selected_col, df)
 
-    # First -> Pick Target Variable
     target_col = select_column(df, 'all')
+    X = df[target_col.name]
+    df.drop(columns=[target_col.name], inplace=True)
 
+    test_size = '-1'
+    while True:
+        print('What test size do you want? (Enter a number between 0 and 0.9)')
+        test_size = input()
+        try:
+            test_size_float = float(test_size)
+            if 0 <= test_size_float <= 0.9:
+                break
+            else:
+                print("The number must be between 0 and 0.9.")
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
+
+    test_size = float(test_size)
+    X_train, X_test, y_train, y_test = train_test_split(X, df, test_size=test_size)
+
+    model = None
     if target_col.dtype == object:
         # GIVE CLASSIFICATION MODELS
         pass
     else:
-        model_options = []
-        pass
+        while True:
+            model_options = ['Linear Regressor', 'RandomForestRegressor']
+            models = [LinearRegression, RandomForestRegressor]
+            print('Which model would you like to use?')
+            option = print_options(model_options)
+            model = models[option]()
+            params = model.get_params()
 
+            for param in params:
+                param_value = params[param]
+                if isinstance(param_value, bool):
+                    param_type = 'bool'
+                elif param_value is None or isinstance(param_value, int):
+                    param_type = 'int'
+                elif isinstance(param_value, float):
+                    param_type = 'float'
+                else:
+                    print(f"Unsupported parameter type for {param}: {type(param_value)}")
+                    continue
+                params[param] = get_input_value(param, param_type)
 
-    # Model Training Loop:
-    while True:
-        # Second -> Pick Model
-        # Third -> Pick Hyperparameters
-        # Fourth -> Display Accuracy Metrics with Chosen Hyper parameters
-        # Fifth -> Loop and tune hyperparameters until satisfied
-        # Sixth -> Save Model
-        pass
+            model.set_params(**params)
+            while True:
+                model.fit(X_train, y_train)
+                model_predictions = model.predict(X_test)
+                metric = mean_squared_error(y_test, model_predictions)
+                metric2 = r2_score(y_test, model_predictions)
+                print("Mean Squared Error: ", metric)
+                print("R2 Score: ", metric2)
+                break
+
+            options = ['Yes', 'No']
+            print("Try again with different hyperparameters?")
+            option = print_options(options)
+            quit()
 
 
 if __name__ == '__main__':
