@@ -2,11 +2,10 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler
-from sklearn.metrics import mean_squared_error, r2_score, accuracy_score
 from sklearn.impute import SimpleImputer
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+import os
 
 encoded_columns = set()
 normalized_columns = set()
@@ -81,7 +80,7 @@ def impute_missing_data(selected_col, df):
     if option == 0:
         imputer = SimpleImputer(strategy='most_frequent')
 
-    df[selected_col.name] = imputer.fit_transform(df[[selected_col.name]])
+    df[selected_col.name] = imputer.fit_transform(df[[selected_col.name]]).ravel()
     print(df[selected_col.name])
 
 
@@ -121,6 +120,11 @@ def print_heatmap(df):
     # Plot the heatmap
     sns.heatmap(corr, annot=True, cmap='coolwarm')
     plt.show()
+
+
+def create_and_train_model(model, X_train, y_train, X_test, y_test):
+    model.fit(X_train, y_train)
+    return model.score(X_test, y_test)
 
 
 def main():
@@ -180,47 +184,64 @@ def main():
     y = df[target_col.name]
     df.drop(columns=[target_col.name], inplace=True)
 
-    test_size = '-1'
     while True:
-        print('What test size do you want? (Enter a number between 0 and 0.3)')
-        test_size = input()
-        try:
-            test_size_float = float(test_size)
-            if 0 <= test_size_float <= 0.3:
-                break
-            else:
-                print("The number must be between 0 and 0.3.")
-        except ValueError:
-            print("Invalid input. Please enter a numeric value.")
+        test_size = '-1'
+        while True:
+            print('What test size do you want? (Enter a number between 0 and 0.3)')
+            test_size = input()
+            try:
+                test_size_float = float(test_size)
+                if 0 <= test_size_float <= 0.3:
+                    break
+                else:
+                    print("The number must be between 0 and 0.3.")
+            except ValueError:
+                print("Invalid input. Please enter a numeric value.")
 
-    test_size = float(test_size)
-    X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=test_size)
+        test_size = float(test_size)
+        X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=test_size)
 
-    model = None
-    while True:
-        model_options = ['Linear Regressor', 'RandomForestRegressor', 'RandomForestClassifier']
-        models = [LinearRegression, RandomForestRegressor, RandomForestClassifier]
+        model_options = ['Linear Regressor', 'RandomForestRegressor']
         print('Which model would you like to use?')
         option = print_options(model_options)
-        model = models[option]()
+        if option == 1:
+            min_n_estimators = int(input('Please enter the minimum number of estimators: '))
+            max_n_estimators = int(input('Please enter the maximum number of estimators: '))
+            min_max_depth = int(input('Please enter the minimum max_depth to test: '))
+            max_max_depth = int(input('Please enter the maximum max_depth to test: '))
 
-        while True:
-            model.fit(X_train, y_train)
-            model_predictions = model.predict(X_test)
-            mse = mean_squared_error(y_test, model_predictions)
-            r2 = r2_score(y_test, model_predictions)
+            filepath = input('Name the folder you want to save the graphs in.')
+            os.makedirs(filepath, exist_ok=True)
 
-            # Calculating percentage accuracy
-            sse = sum((y_test - model_predictions) ** 2)
-            tss = sum((y_test - y_test.mean()) ** 2)
-            accuracy = 100 * (1 - (sse / tss))
-            acc = accuracy_score(y_test, model_predictions)
+            n_estimators_list = range(min_n_estimators, max_n_estimators + 1)
 
-            print("Mean Squared Error: ", mse)
-            print("R2 Score: ", r2)
-            print("Percentage Accuracy: ", accuracy)
-            print("Percentage Accuracy: ", acc)
-            break
+            best_max_depth = 0
+            best_n_estimators = 0
+            max_accuracy = 0
+            for d in range(min_max_depth, max_max_depth):
+                accuracies = []
+                for n in n_estimators_list:
+                    model = RandomForestRegressor(n_estimators=n, max_depth=d)
+                    acc = create_and_train_model(model, X_train, y_train, X_test, y_test)
+                    accuracies.append(acc)
+                    if acc > max_accuracy:
+                        max_accuracy = acc
+                        best_max_depth = d
+                        best_n_estimators = n
+                    print(f"n_estimators: {n}, max_depth: {d}, accuracy: {acc}")
+
+                plt.scatter(n_estimators_list, accuracies, color='blue')
+                plt.plot(n_estimators_list, accuracies, color='blue', linestyle='-', marker='o')
+                plt.xlabel('Number of Estimators')
+                plt.ylabel('Accuracy')
+                plt.title(f'Random Forest Accuracy vs Number of Estimators with Max_Depth: {d}')
+                plt.savefig(f'graph/accuracy_vs_estimators_depth_{d}.png')
+                plt.close()  # Close the plot to avoid overlap of figures
+
+            print(f"Best number of estimators: {best_n_estimators}, max_depth: {best_max_depth}, accuracy: {max_accuracy}")
+        elif option == 0:
+            acc = create_and_train_model(model, X_train, y_train, X_test, y_test)
+            print(f"accuracy: {acc}")
 
         print("Try again with different model/hyperparameters?")
         options = ['Yes', 'No']
