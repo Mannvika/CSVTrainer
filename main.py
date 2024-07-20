@@ -122,6 +122,24 @@ def print_heatmap(df):
     plt.show()
 
 
+def load_data(filepath):
+    if filepath.endswith('.csv'):
+        df = pd.read_csv(filepath)
+    elif filepath.endswith('.xlsx') or filepath.endswith('.xls'):
+        df = pd.read_excel(filepath)
+    elif filepath.endswith('.json'):
+        df = pd.read_json(filepath)
+    elif filepath.endswith('.parquet'):
+        df = pd.read_parquet(filepath)
+    elif filepath.endswith('.h5'):
+        df = pd.read_hdf(filepath)
+    elif filepath.endswith('.feather'):
+        df = pd.read_feather(filepath)
+    else:
+        raise ValueError("Unsupported file format")
+    return df
+
+
 def create_and_train_model(model, X_train, y_train, X_test, y_test):
     model.fit(X_train, y_train)
     return model.score(X_test, y_test)
@@ -136,7 +154,7 @@ def main():
 
     # Load tabular data based on filepath
     filepath = input()
-    df = pd.read_csv(filepath)
+    df = load_data(filepath)
 
     # Display first few data
     print('\nYour Data: ')
@@ -201,48 +219,42 @@ def main():
         test_size = float(test_size)
         X_train, X_test, y_train, y_test = train_test_split(df, y, test_size=test_size)
 
-        model_options = ['Linear Regressor', 'RandomForestRegressor']
+        model_options = ['RandomForestRegressor', 'RandomForestClassifier']
+        models = [RandomForestRegressor, RandomForestClassifier]
         print('Which model would you like to use?')
         option = print_options(model_options)
-        if option == 1:
-            min_n_estimators = int(input('Please enter the minimum number of estimators: '))
-            max_n_estimators = int(input('Please enter the maximum number of estimators: '))
-            min_max_depth = int(input('Please enter the minimum max_depth to test: '))
-            max_max_depth = int(input('Please enter the maximum max_depth to test: '))
+        min_n_estimators = int(input('Please enter the minimum number of estimators: '))
+        max_n_estimators = int(input('Please enter the maximum number of estimators: '))
+        min_max_depth = int(input('Please enter the minimum max_depth to test: '))
+        max_max_depth = int(input('Please enter the maximum max_depth to test: '))
 
-            filepath = input('Name the folder you want to save the graphs in.')
-            os.makedirs(filepath, exist_ok=True)
+        filepath = input('Name the folder you want to save the graphs in.')
+        os.makedirs(filepath, exist_ok=True)
 
-            n_estimators_list = range(min_n_estimators, max_n_estimators + 1)
+        n_estimators_list = range(min_n_estimators, max_n_estimators + 1)
+        best_max_depth = 0
+        best_n_estimators = 0
+        max_accuracy = 0
+        for d in range(min_max_depth, max_max_depth+1):
+            accuracies = []
+            for n in n_estimators_list:
+                model = models[option](n_estimators=n, max_depth=d)
+                acc = create_and_train_model(model, X_train, y_train, X_test, y_test)
+                accuracies.append(acc)
+                if acc > max_accuracy:
+                    max_accuracy = acc
+                    best_max_depth = d
+                    best_n_estimators = n
+                print(f"n_estimators: {n}, max_depth: {d}, accuracy: {acc}")
 
-            best_max_depth = 0
-            best_n_estimators = 0
-            max_accuracy = 0
-            for d in range(min_max_depth, max_max_depth):
-                accuracies = []
-                for n in n_estimators_list:
-                    model = RandomForestRegressor(n_estimators=n, max_depth=d)
-                    acc = create_and_train_model(model, X_train, y_train, X_test, y_test)
-                    accuracies.append(acc)
-                    if acc > max_accuracy:
-                        max_accuracy = acc
-                        best_max_depth = d
-                        best_n_estimators = n
-                    print(f"n_estimators: {n}, max_depth: {d}, accuracy: {acc}")
-
-                plt.scatter(n_estimators_list, accuracies, color='blue')
-                plt.plot(n_estimators_list, accuracies, color='blue', linestyle='-', marker='o')
-                plt.xlabel('Number of Estimators')
-                plt.ylabel('Accuracy')
-                plt.title(f'Random Forest Accuracy vs Number of Estimators with Max_Depth: {d}')
-                plt.savefig(f'graph/accuracy_vs_estimators_depth_{d}.png')
-                plt.close()  # Close the plot to avoid overlap of figures
-
-            print(f"Best number of estimators: {best_n_estimators}, max_depth: {best_max_depth}, accuracy: {max_accuracy}")
-        elif option == 0:
-            acc = create_and_train_model(model, X_train, y_train, X_test, y_test)
-            print(f"accuracy: {acc}")
-
+            plt.scatter(n_estimators_list, accuracies, color='blue')
+            plt.plot(n_estimators_list, accuracies, color='blue', linestyle='-', marker='o')
+            plt.xlabel('Number of Estimators')
+            plt.ylabel('Accuracy')
+            plt.title(f'Random Forest Accuracy vs Number of Estimators with Max_Depth: {d}')
+            plt.savefig(os.path.join(filepath, f'accuracy_vs_estimators_depth_{d}.png'))
+            plt.close()
+        print(f"Best number of estimators: {best_n_estimators}, max_depth: {best_max_depth}, accuracy: {max_accuracy}")
         print("Try again with different model/hyperparameters?")
         options = ['Yes', 'No']
         option = print_options(options)
